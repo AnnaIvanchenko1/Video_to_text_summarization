@@ -3,3 +3,7 @@ shared/
 data/output/
 __pycache__/
 *.pyc
+hf_cache/
+data/input/
+*.mp4
+*.safetensors
