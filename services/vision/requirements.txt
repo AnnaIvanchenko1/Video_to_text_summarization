@@ -1,0 +1,8 @@
+torch
+torchvision
+transformers>=4.43.0
+accelerate
+bitsandbytes
+safetensors
+Pillow
+opencv-python-headless

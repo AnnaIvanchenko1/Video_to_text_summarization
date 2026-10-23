@@ -1,0 +1,5 @@
+.env
+shared/
+data/output/
+__pycache__/
+*.pyc

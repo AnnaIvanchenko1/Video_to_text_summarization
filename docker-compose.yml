@@ -1,0 +1,96 @@
+services:
+  vad:
+    build:
+      context: ./services/vad
+    container_name: video_pipeline_vad
+    environment:
+      INPUT_VIDEO: /data/input/video.mp4
+      SHARED_DIR: /shared
+    volumes:
+      - ./data:/data
+      - ./shared:/shared
+    command: ["python", "-m", "app.main"]
+
+  transcription:
+    build:
+      context: ./services/transcription
+    container_name: video_pipeline_transcription
+    environment:
+      SHARED_DIR: /shared
+      #HF_TOKEN: ${HF_TOKEN}
+      WHISPER_LIGHT_MODEL: tiny
+      WHISPER_FULL_MODEL: small
+      LANGUAGE: ${LANGUAGE:-en}
+      MAX_SEGMENTS: ${MAX_SEGMENTS:-30}
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+      - ./shared:/shared
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      vad:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "-m", "app.main"]
+
+  vision:
+    build:
+      context: ./services/vision
+    container_name: video_pipeline_vision
+    environment:
+      SHARED_DIR: /shared
+      #HF_TOKEN: ${HF_TOKEN}
+      LLAVA_MODEL: llava-hf/llava-1.5-7b-hf
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+      - ./shared:/shared
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      transcription:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "-m", "app.main"]
+
+  summarizer:
+    build:
+      context: ./services/summarizer
+    container_name: video_pipeline_summarizer
+    environment:
+      SHARED_DIR: /shared
+      #HF_TOKEN: ${HF_TOKEN}
+      PHI_MODEL: microsoft/Phi-3.5-mini-instruct
+    env_file:
+      - .env
+    volumes:
+      - ./shared:/shared
+      - ./data:/data
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      vision:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "-m", "app.main"]
+
+volumes:
+  hf_cache:
